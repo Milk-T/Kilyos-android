@@ -44,9 +44,9 @@ public class RouterWebView extends WebView {
         }
     }
 
-    public void setNativeCodeInstance(Object obj) {
-        addJavascriptInterface(new JsProxy(obj), "_routerNative");
-    }
+//    public void setNativeCodeInstance(Object obj) {
+//        addJavascriptInterface(new JsProxy(obj), "_routerNative");
+//    }
 
     public void disableSideEffect() {
         setOverScrollMode(View.OVER_SCROLL_NEVER);
@@ -58,7 +58,7 @@ public class RouterWebView extends WebView {
 
         WebSettings webSettings = getSettings();
         webSettings.setUseWideViewPort(true);
-        webSettings.setJavaScriptEnabled(true);
+//        webSettings.setJavaScriptEnabled(true);
         webSettings.setDomStorageEnabled(true);
         webSettings.setSaveFormData(false);
         webSettings.setSavePassword(false);
