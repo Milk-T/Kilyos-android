@@ -1,5 +1,7 @@
 package com.eju.router.sdk;
 
+import android.content.Context;
+
 import java.io.IOException;
 
 
@@ -18,5 +20,5 @@ interface HtmlLoader {
      * @return contents in bytes or null when no contents could be loaded
      * @throws IOException if error in I/O
      */
-    HttpClient.Response load(HttpClient.Request request) throws IOException;
+    HttpClient.Response load(Context context, HttpClient.Request request) throws IOException;
 }

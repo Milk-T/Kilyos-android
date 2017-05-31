@@ -34,7 +34,7 @@ public class TargetWebViewActivity extends Activity implements Handler.Callback 
         super.onCreate(savedInstanceState);
 
         RouterWebView webView = new RouterWebView(this);
-        webView.setWebViewClient(new RouterWebViewClient(webView, new HttpClient() {
+        webView.setWebViewClient(new RouterWebViewClient(new HttpClient() {
             @Override
             public Response execute(Request request) throws IOException {
                 return null;

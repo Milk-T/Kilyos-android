@@ -1,5 +1,6 @@
 package com.eju.router.sdk;
 
+import android.content.Context;
 import com.eju.router.sdk.exception.EjuException;
 
 /**
@@ -10,13 +11,14 @@ import com.eju.router.sdk.exception.EjuException;
 public interface HtmlHandler {
 
     /**
-     * handle the html contents
+     * handle the html contents.
      *
-     * @param url html url
-     * @param contents html contents
-     * @return handled contents
-     * @throws EjuException if error
+     * @param context  context.
+     * @param url html url.
+     * @param contents html contents.
+     * @return handled contents.
+     * @throws EjuException if error.
      */
-    byte[] handle(String url, byte[] contents) throws EjuException;
+    byte[] handle(Context context, String url, byte[] contents) throws EjuException;
     // need parameter in {@link #handle(String, byte[])} ?
 }
