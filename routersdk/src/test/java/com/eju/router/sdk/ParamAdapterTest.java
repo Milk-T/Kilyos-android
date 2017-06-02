@@ -1,5 +1,6 @@
 package com.eju.router.sdk;
 
+import android.content.Context;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Parcel;
@@ -352,7 +353,7 @@ public class ParamAdapterTest extends BaseTest {
                             "</script>";
 
             @Override
-            public byte[] handle(String url, byte[] contents) throws EjuException {
+            public byte[] handle(Context context, String url, byte[] contents) throws EjuException {
                 String html = new String(contents);
 
                 int i = html.lastIndexOf(END_HTML);
@@ -435,7 +436,7 @@ public class ParamAdapterTest extends BaseTest {
             }
         };
         try {
-            byte[] buffer = DEFAULT_PARAMETER_HANDLER.handle("aaa",
+            byte[] buffer = DEFAULT_PARAMETER_HANDLER.handle(null, "aaa",
                     "<html><head></head><body>hello world !</body></html>".getBytes());
             System.out.println(new String(buffer));
         } catch (EjuException e) {

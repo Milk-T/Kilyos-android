@@ -45,14 +45,11 @@ public class RouterWebViewClient extends WebViewClient implements HtmlHandler {
                     ";" +
                     "</script>\n";
 
-    private Context mContext;
-
     private final Router router;
     private final AbstractInterceptor mRemoteInterceptor;
     private final AbstractInterceptor mLocalInterceptor;
 
-    public RouterWebViewClient(WebView webView, HttpClient client) {
-        mContext = webView.getContext();
+    public RouterWebViewClient(HttpClient client) {
         router = Router.getInstance();
         mRemoteInterceptor = new AbstractInterceptor(new RemoteHtmlLoader(client)) {};
         mLocalInterceptor = new AbstractInterceptor(new NativeHtmlLoader()) {};
@@ -71,7 +68,7 @@ public class RouterWebViewClient extends WebViewClient implements HtmlHandler {
         if (router.isNativeRouteSchema(url)) {
             try {
                 URI uri = new URI(url);
-                router.internalRoute(mContext, uri);
+                router.internalRoute(view.getContext(), uri);
             } catch (URISyntaxException e) {
 //                e.printStackTrace();
                 router.broadcastException(new EjuException(EjuException.UNKNOWN_ERROR, e.getMessage()));
@@ -97,9 +94,9 @@ public class RouterWebViewClient extends WebViewClient implements HtmlHandler {
 
         final WebResourceResponse wrr;
         if(router.isNativeRouteSchema(url)) {
-            wrr = mLocalInterceptor.intercept(request);
+            wrr = mLocalInterceptor.intercept(view.getContext(), request);
         } else {
-            wrr = mRemoteInterceptor.intercept(request);
+            wrr = mRemoteInterceptor.intercept(view.getContext(), request);
         }
 
         onAfterInterceptRequest(view, url, wrr);
@@ -115,9 +112,9 @@ public class RouterWebViewClient extends WebViewClient implements HtmlHandler {
 
         final WebResourceResponse wrr;
         if(router.isNativeRouteSchema(url)) {
-            wrr = mLocalInterceptor.intercept(url);
+            wrr = mLocalInterceptor.intercept(view.getContext(), url);
         } else {
-            wrr = mRemoteInterceptor.intercept(url);
+            wrr = mRemoteInterceptor.intercept(view.getContext(), url);
         }
 
         onAfterInterceptRequest(view, url, wrr);
@@ -141,7 +138,7 @@ public class RouterWebViewClient extends WebViewClient implements HtmlHandler {
     }
 
     @Override
-    public byte[] handle(String url, byte[] contents) throws EjuException {
+    public byte[] handle(Context context, String url, byte[] contents) throws EjuException {
         String html = new String(contents);
 
         int i = html.lastIndexOf(END_HTML);
@@ -154,7 +151,7 @@ public class RouterWebViewClient extends WebViewClient implements HtmlHandler {
             html = html.substring(0, i + END_HTML.length());
         }
 
-        Bundle bundle = ((Activity)mContext).getIntent().getExtras();
+        Bundle bundle = ((Activity)context).getIntent().getExtras();
         if(null != bundle) {
             StringBuilder builder = new StringBuilder();
             for (String key : bundle.keySet()) {
@@ -237,7 +234,7 @@ public class RouterWebViewClient extends WebViewClient implements HtmlHandler {
         }
 
         @Override
-        @Nullable public HttpClient.Response load(HttpClient.Request request) throws IOException {
+        @Nullable public HttpClient.Response load(Context context, HttpClient.Request request) throws IOException {
             return mClient.execute(request);
         }
     }
@@ -247,7 +244,7 @@ public class RouterWebViewClient extends WebViewClient implements HtmlHandler {
         private final String ASSETS_BASE = "file:///android_asset/";
 
         @Override
-        public HttpClient.Response load(HttpClient.Request request) throws IOException {
+        public HttpClient.Response load(final Context context, HttpClient.Request request) throws IOException {
             String requestUrl = request.getUrl();
             final String url = "file".concat(requestUrl.substring(requestUrl.indexOf(':')));
             if(!url.startsWith(ASSETS_BASE)) {
@@ -256,7 +253,7 @@ public class RouterWebViewClient extends WebViewClient implements HtmlHandler {
             return new HttpClient.Response() {
                 @Override
                 public InputStream getBody() {
-                    Resources resources = mContext.getResources();
+                    Resources resources = context.getResources();
                     try {
                         return resources.getAssets().open(url.substring(ASSETS_BASE.length()));
                     } catch (IOException e) {

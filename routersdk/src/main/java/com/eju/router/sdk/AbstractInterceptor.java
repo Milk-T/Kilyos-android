@@ -1,6 +1,7 @@
 package com.eju.router.sdk;
 
 import android.annotation.TargetApi;
+import android.content.Context;
 import android.os.Build;
 import android.support.annotation.NonNull;
 import android.webkit.WebResourceRequest;
@@ -22,7 +23,7 @@ import java.util.Map;
  * This class will take effect
  * in {@link android.webkit.WebViewClient#shouldInterceptRequest(WebView, WebResourceRequest)} and
  * intercept the process of {@link android.webkit.WebView#loadUrl(String)}. This class will load
- * the contents with {@link HtmlLoader} handle them by {@link #insert0(String, byte[])}
+ * the contents with {@link HtmlLoader} handle them by {@link #insert0(Context, String, byte[])}
  *
  * @author tangqianwei
  */
@@ -52,10 +53,10 @@ abstract class AbstractInterceptor {
      * @throws EjuException if error
      */
     @NonNull
-    private HttpClient.Response load0(HttpClient.Request request) throws EjuException {
+    private HttpClient.Response load0(Context context, HttpClient.Request request) throws EjuException {
         HttpClient.Response content;
         try {
-            content = mLoader.load(request);
+            content = mLoader.load(context, request);
         } catch (IOException e) {
             throw new EjuException(e);
         }
@@ -75,9 +76,9 @@ abstract class AbstractInterceptor {
      * @throws EjuException if error
      */
     @NonNull
-    private byte[] insert0(@NonNull String url, @NonNull byte[] buffer) throws EjuException {
+    private byte[] insert0(Context context, @NonNull String url, @NonNull byte[] buffer) throws EjuException {
         if(null != mParamHandler) {
-            buffer = mParamHandler.handle(url, buffer);
+            buffer = mParamHandler.handle(context, url, buffer);
         }
         return buffer;
     }
@@ -90,8 +91,8 @@ abstract class AbstractInterceptor {
      * @return {@link WebResourceResponse}
      */
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
-    WebResourceResponse intercept(final WebResourceRequest request) {
-        return intercept(new HttpClient.Request() {
+    WebResourceResponse intercept(final Context context, final WebResourceRequest request) {
+        return intercept(context, new HttpClient.Request() {
             @Override
             public String getUrl() {
                 return request.getUrl().toString();
@@ -126,8 +127,8 @@ abstract class AbstractInterceptor {
      * @param url current url.
      * @return {@link WebResourceResponse}
      */
-    WebResourceResponse intercept(final String url) {
-        return intercept(new HttpClient.Request() {
+    WebResourceResponse intercept(final Context context, final String url) {
+        return intercept(context, new HttpClient.Request() {
             @Override
             public String getUrl() {
                 return url;
@@ -155,10 +156,10 @@ abstract class AbstractInterceptor {
         });
     }
 
-    private WebResourceResponse intercept(HttpClient.Request request) {
+    private WebResourceResponse intercept(Context context, HttpClient.Request request) {
         final HttpClient.Response response;
         try {
-            response = load0(request);
+            response = load0(context, request);
         } catch (EjuException e) {
             return null;
         }
@@ -177,7 +178,7 @@ abstract class AbstractInterceptor {
                 byte[] data = readStream(is);
                 try {
                     // parameter
-                    data = insert0(request.getUrl(), data);
+                    data = insert0(context, request.getUrl(), data);
                 } catch (EjuException ignored) {}
                 is = new ByteArrayInputStream(data);
                 break;
