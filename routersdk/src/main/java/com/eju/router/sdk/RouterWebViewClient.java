@@ -164,10 +164,14 @@ public class RouterWebViewClient extends WebViewClient implements HtmlHandler {
         interceptors.add(new RemoteInterceptor(client));
 
         RequestInterceptor[] requestInterceptors = interceptors.toArray(new RequestInterceptor[interceptors.size()]);
-        return new RequestChain(requestInterceptors, originRequest).proceed(originRequest);
+        return new RequestChain(0, requestInterceptors, originRequest).proceed(originRequest);
     }
 
     private WebResourceResponse parseRawResponse(HttpClient.Response raw) {
+        if(null == raw) {
+            return null;
+        }
+
         String mimeType = raw.getMimeType();
         mimeType = null == mimeType ? "text/plain" : mimeType;
 

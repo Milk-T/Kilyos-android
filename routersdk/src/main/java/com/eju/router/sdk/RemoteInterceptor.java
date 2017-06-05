@@ -18,6 +18,9 @@ class RemoteInterceptor implements RequestInterceptor {
 
     @Override
     public HttpClient.Response intercept(Chain chain) throws IOException {
+        if(null == this.client) {
+            return null;
+        }
         return this.client.execute(chain.request());
     }
 }

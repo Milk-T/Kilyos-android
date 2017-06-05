@@ -27,9 +27,11 @@ class InsertInterceptor implements RequestInterceptor {
 
     @Override
     public HttpClient.Response intercept(Chain chain) throws Exception {
-        RequestChain requestChain = (RequestChain) chain;
         HttpClient.Request request = chain.request();
-        final HttpClient.Response rawResponse = requestChain.proceed(request);
+        final HttpClient.Response rawResponse = chain.proceed(request);
+        if(null == rawResponse) {
+            return null;
+        }
 
         final InputStream is;
         switch (rawResponse.getMimeType()) {

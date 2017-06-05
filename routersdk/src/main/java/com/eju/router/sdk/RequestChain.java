@@ -1,7 +1,5 @@
 package com.eju.router.sdk;
 
-import java.util.List;
-
 /**
  * Class description.
  *
@@ -10,10 +8,12 @@ import java.util.List;
  */
 class RequestChain implements RequestInterceptor.Chain {
 
+    private int index;
     private RequestInterceptor[] interceptors;
     private HttpClient.Request request;
 
-    RequestChain(RequestInterceptor[] interceptors, HttpClient.Request request) {
+    RequestChain(int index, RequestInterceptor[] interceptors, HttpClient.Request request) {
+        this.index = index;
         this.interceptors = interceptors;
         this.request = request;
     }
@@ -25,6 +25,12 @@ class RequestChain implements RequestInterceptor.Chain {
 
     @Override
     public HttpClient.Response proceed(HttpClient.Request request) throws Exception {
-        return null;
+        if(index >= this.interceptors.length) {
+            throw new IllegalStateException("wrong size in chain.");
+        }
+
+        RequestInterceptor interceptor = interceptors[index];
+        RequestChain next = new RequestChain(index + 1, interceptors, request);
+        return interceptor.intercept(next);
     }
 }

@@ -27,15 +27,14 @@ class NativeInterceptor implements RequestInterceptor {
 
     @Override
     public HttpClient.Response intercept(Chain chain) throws Exception {
-        final RequestChain requestChain = (RequestChain) chain;
-        String requestUrl = requestChain.request().getUrl();
-        if(!requestUrl.contains("")) {
-            return requestChain.proceed(requestChain.request());
+        String requestUrl = chain.request().getUrl();
+        if(!Router.getInstance().isNativeRouteSchema(requestUrl)) {
+            return chain.proceed(chain.request());
         }
 
         final String url = "file".concat(requestUrl.substring(requestUrl.indexOf(':')));
         if(!url.startsWith(ASSETS_BASE)) {
-            return requestChain.proceed(requestChain.request());
+            return chain.proceed(chain.request());
         }
 
         return new HttpClient.Response() {
