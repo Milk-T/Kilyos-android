@@ -3,26 +3,23 @@ package com.eju.router.sdk;
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.Context;
-import android.content.res.Resources;
 import android.os.Build;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.webkit.MimeTypeMap;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-
 import com.eju.router.sdk.exception.EjuException;
 
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 
@@ -46,15 +43,11 @@ public class RouterWebViewClient extends WebViewClient implements HtmlHandler {
                     "</script>\n";
 
     private final Router router;
-    private final AbstractInterceptor mRemoteInterceptor;
-    private final AbstractInterceptor mLocalInterceptor;
+    private final HttpClient client;
 
     public RouterWebViewClient(HttpClient client) {
-        router = Router.getInstance();
-        mRemoteInterceptor = new AbstractInterceptor(new RemoteHtmlLoader(client)) {};
-        mLocalInterceptor = new AbstractInterceptor(new NativeHtmlLoader()) {};
-        mRemoteInterceptor.setParamHandler(this);
-        mLocalInterceptor.setParamHandler(this);
+        this.router = Router.getInstance();
+        this.client = client;
     }
 
     @Override
@@ -86,38 +79,117 @@ public class RouterWebViewClient extends WebViewClient implements HtmlHandler {
 
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
     @Override
-    public final WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
-        String url = request.getUrl().toString();
-        EjuLog.d("[ROUTER][LOAD] " + url);
+    public final WebResourceResponse shouldInterceptRequest(WebView view, final WebResourceRequest request) {
+        return intercept(view, new HttpClient.Request() {
+            @Override
+            public String getUrl() {
+                return request.getUrl().toString();
+            }
 
-        url = onBeforeInterceptRequest(view, url);
+            @Override
+            public String getMethod() {
+                return request.getMethod();
+            }
 
-        final WebResourceResponse wrr;
-        if(router.isNativeRouteSchema(url)) {
-            wrr = mLocalInterceptor.intercept(view.getContext(), request);
-        } else {
-            wrr = mRemoteInterceptor.intercept(view.getContext(), request);
-        }
+            @Override
+            public Map<String, String> getHeaders() {
+                return request.getRequestHeaders();
+            }
 
-        onAfterInterceptRequest(view, url, wrr);
-        return wrr;
+            @Override
+            public OutputStream getBody() {
+                return null;
+            }
+
+            @Override
+            public String getContentType() {
+                return null;
+            }
+        });
     }
 
     @SuppressWarnings("deprecation")
     @Override
-    public final WebResourceResponse shouldInterceptRequest(WebView view, String url) {
-        EjuLog.d("[ROUTER][LOAD] " + url);
+    public final WebResourceResponse shouldInterceptRequest(WebView view, final String url) {
+        return intercept(view, new HttpClient.Request() {
+            @Override
+            public String getUrl() {
+                return url;
+            }
 
-        url = onBeforeInterceptRequest(view, url);
+            @Override
+            public String getMethod() {
+                return "GET";
+            }
 
-        final WebResourceResponse wrr;
-        if(router.isNativeRouteSchema(url)) {
-            wrr = mLocalInterceptor.intercept(view.getContext(), url);
-        } else {
-            wrr = mRemoteInterceptor.intercept(view.getContext(), url);
+            @Override
+            public Map<String, String> getHeaders() {
+                return null;
+            }
+
+            @Override
+            public OutputStream getBody() {
+                return null;
+            }
+
+            @Override
+            public String getContentType() {
+                return null;
+            }
+        });
+    }
+
+    private WebResourceResponse intercept(WebView view, HttpClient.Request request) {
+        EjuLog.d("[ROUTER][LOAD] " + request.getUrl());
+
+        onBeforeInterceptRequest(view, request.getUrl());
+
+        WebResourceResponse wrr;
+        try {
+            wrr = parseRawResponse(getResponseFromChain(view.getContext(), request));
+        } catch (Exception e) {
+            wrr = null;
         }
 
-        onAfterInterceptRequest(view, url, wrr);
+        onAfterInterceptRequest(view, request.getUrl(), wrr);
+        return wrr;
+    }
+
+    private HttpClient.Response getResponseFromChain(
+            Context context, HttpClient.Request originRequest) throws Exception {
+
+        List<RequestInterceptor> interceptors = new ArrayList<>();
+        interceptors.add(new InsertInterceptor(context, this));
+        interceptors.add(new NativeInterceptor(context));
+        interceptors.add(new RemoteInterceptor(client));
+
+        RequestInterceptor[] requestInterceptors = interceptors.toArray(new RequestInterceptor[interceptors.size()]);
+        return new RequestChain(0, requestInterceptors, originRequest).proceed(originRequest);
+    }
+
+    private WebResourceResponse parseRawResponse(HttpClient.Response raw) {
+        if(null == raw) {
+            return null;
+        }
+
+        String mimeType = raw.getMimeType();
+        mimeType = null == mimeType ? "text/plain" : mimeType;
+
+        InputStream is = raw.getBody();
+        if(null == is) {
+            is = new ByteArrayInputStream("no data".getBytes());
+            mimeType = "text/plain";
+        }
+
+        String encoding = null == raw.getEncoding() ? "utf-8" : raw.getEncoding();
+        WebResourceResponse wrr = new WebResourceResponse(mimeType, encoding, is);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            wrr.setResponseHeaders(raw.getHeaders());
+            try {
+                wrr.setStatusCodeAndReasonPhrase(
+                        raw.getStatusCode(), raw.getReasonPhrase());
+            } catch (Exception ignored) {}
+        }
         return wrr;
     }
 
@@ -129,8 +201,8 @@ public class RouterWebViewClient extends WebViewClient implements HtmlHandler {
 
     }
 
-    protected String onBeforeInterceptRequest(WebView view, String url) {
-        return url;
+    protected void onBeforeInterceptRequest(WebView view, String url) {
+
     }
 
     protected void onAfterInterceptRequest(WebView view, String url, WebResourceResponse wrr) {
@@ -223,75 +295,5 @@ public class RouterWebViewClient extends WebViewClient implements HtmlHandler {
         }
 
         return builder.toString();
-    }
-
-    private class RemoteHtmlLoader implements HtmlLoader {
-
-        private HttpClient mClient;
-
-        RemoteHtmlLoader(HttpClient client) {
-            mClient = client;
-        }
-
-        @Override
-        @Nullable public HttpClient.Response load(Context context, HttpClient.Request request) throws IOException {
-            return mClient.execute(request);
-        }
-    }
-
-    private class NativeHtmlLoader implements HtmlLoader {
-
-        private final String ASSETS_BASE = "file:///android_asset/";
-
-        @Override
-        public HttpClient.Response load(final Context context, HttpClient.Request request) throws IOException {
-            String requestUrl = request.getUrl();
-            final String url = "file".concat(requestUrl.substring(requestUrl.indexOf(':')));
-            if(!url.startsWith(ASSETS_BASE)) {
-                throw new IOException("invalid url");
-            }
-            return new HttpClient.Response() {
-                @Override
-                public InputStream getBody() {
-                    Resources resources = context.getResources();
-                    try {
-                        return resources.getAssets().open(url.substring(ASSETS_BASE.length()));
-                    } catch (IOException e) {
-                        return new ByteArrayInputStream(new byte[0]);
-                    }
-                }
-
-                @Override
-                public String getMimeType() {
-                    String extension = MimeTypeMap.getFileExtensionFromUrl(url);
-                    switch (extension) {
-                        case "js":
-                            return "text/javascript";
-                        default:
-                            return MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension);
-                    }
-                }
-
-                @Override
-                public String getEncoding() {
-                    return "utf-8";
-                }
-
-                @Override
-                public Map<String, String> getHeaders() {
-                    return null;
-                }
-
-                @Override
-                public int getStatusCode() {
-                    return 200;
-                }
-
-                @Override
-                public String getReasonPhrase() {
-                    return "OK";
-                }
-            };
-        }
     }
 }
